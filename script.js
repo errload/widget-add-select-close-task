@@ -10,223 +10,6 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
         this.create_task_length = 3;
         this.taskClosed = false;
 
-
-
-
-        this.editSelect = function () {
-            // массив/объект с get_settings(), преобразуем в массив
-            var selectItems = [], items = self.get_settings().selectItem || [];
-            typeof items !== 'string' ? items = JSON.parse(JSON.stringify(items)) : items = JSON.parse(items);
-            $.each(items, function () { selectItems.push(this); });
-
-            // функция обновления get_settings()
-            const settingsUpdate = function () {
-                $(`#${ self.get_settings().widget_code }_custom`).val(JSON.stringify(selectItems));
-                $(`#${ self.get_settings().widget_code }_custom`).trigger('change');
-            }
-
-            // функция удаления элемента select
-            const inputRemove = function (e) {
-                var input = $(e.target).closest('.select__enums__item').find('input').val(),
-                    value = $($(e.target).closest('.select__enums__item').find('input')).attr('value');
-
-                $.each(selectItems, function (index, item) {
-                    if (!value) {
-                        $(e.target).closest('.select__enums__item').remove();
-                        settingsUpdate();
-                        return false;
-                    }
-                    else {
-                        if (item.option != input) return;
-                        selectItems.splice(index, 1);
-                        $(e.target).closest('.select__enums__item').remove();
-                        settingsUpdate();
-                        return false;
-                    }
-
-                });
-
-                // удаляем элемент select
-                $.each($('.close_task_select ul li'), function () {
-                    if ($(this).find('span').text() == input) {
-                        $(this).remove();
-                    }
-                });
-            }
-
-            // функция добавления/редактирования элемента select
-            const inputEdit = function (e) {
-                var isValue = false,
-                    option = $(e.target).val().trim(),
-                    value = $(e.target).attr('value');
-
-                if (!option.length) $(e.target).val('');
-
-
-                var lastSelectItems = [];
-                lastSelectItems.push({option: 'Выбрать результат'});
-                $.each($('.select__enums__input'), function () {
-                    option = $(this).val().trim();
-                    var isValue = false;
-
-                    if (!option.length) return;
-                    $.each(lastSelectItems, function (index, item) {
-                        if (item.option == option) isValue = true;
-                        return false;
-                    });
-
-                    if (!isValue) lastSelectItems.push({ option: option });
-                });
-
-                // selectItems = [];
-                // $.each(lastSelectItems, function(index, item){
-                //     if ($.inArray(item, selectItems) === -1) selectItems.push(item);
-                // });
-                selectItems = lastSelectItems;
-                console.log(selectItems);
-
-                // $.each(selectItems, function (index, item) { if (item.option == option) isValue = true });
-                // if (!isValue && option.length && !value) {
-                //     $.each(selectItems, function (index, item) {
-                //         if (item.option != option) return;
-                //         selectItems.splice(index, 1);
-                //     });
-                //     selectItems.push({ option: option });
-                //
-                //     var lastSelectItems = [];
-                //     $.each($('.select__enums__input'), function () {
-                //         lastSelectItem.push($(this).val());
-                //     });
-                //     selectItems = lastSelectItems;
-                // }
-                // else if (!isValue && option.length && value) {
-                //     $.each(selectItems, function (index, item) { if (item.option == value) item.option = option });
-                // }
-
-                settingsUpdate();
-
-                $.each($('.close_task_select ul li'), function () { $(this).remove(); });
-                $.each(selectItems, function (index, item) {
-                    $('.close_task_select ul').append(`
-                        <li data-value="${ item.option }" data-color class="control--select--list--item">
-                            <span class="control--select--list--item-inner" title="${ item.option }">${ item.option }</span>
-                        </li>
-                    `);
-                });
-            }
-
-            // функция добавления элемента input
-            const addInput = function (option = '') {
-                var input = Twig({ ref: '/tmpl/controls/input.twig' }).render({
-                    name: 'select-item',
-                    class_name: 'select__enums__input',
-                    value: option,
-                    placeholder: 'Вариант',
-                    max_length: 50
-                });
-
-                // вставляем и ровняем инпут и кнопку удаления
-                $('.select__enums__href').before(`
-                    <div class="widget_settings_block__input_field select__enums__item" style="
-                        margin-bottom: 4px;
-                        width: 100%;
-                        position: relative;
-                    ">
-                        <div class="cf-field-enum__remove" title="Удалить" style="width: auto;">
-                            <svg class="svg-icon svg-common--trash-dims"><use xlink:href="#common--trash"></use></svg>
-                        </div>
-                        ${ input }
-                    </div>
-                `);
-
-                $('.select__enums__input').css('padding-right', '25px');
-                $('.cf-field-enum__remove').css({
-                    'position': 'absolute',
-                    'top': '10px',
-                    left: $('.select__enums__input').outerWidth() - 20,
-                    'cursor': 'pointer'
-                });
-            }
-
-
-
-
-            // если пустой, добавляем пункт title
-            if (selectItems.length == 0) selectItems.unshift({option: 'Выбрать результат'});
-
-            // вставляем и ровняем select и заголовок
-            var select = Twig({ ref: '/tmpl/controls/select.twig' }).render({
-                items: selectItems, class_name: 'close_task_select'
-            });
-            $('.widget_settings_block__controls').before(select);
-            $('.close_task_select').before(`
-                <div class="widget_settings_block__title_field" style="martin-top: 10px;">
-                    Список результатов задач
-                </div>
-            `);
-            $('.close_task_select').css('margin-bottom', '4px');
-            $('.close_task_select .control--select--button').css('width', '278px');
-            $('.close_task_select ul').css({
-                'width': 'auto',
-                'min-width': '265px',
-                'max-width': $('.view-integration-modal__tabs').outerWidth(),
-                'margin-left': '13px'
-            });
-
-            // ссылка для добавления инпута
-            $('.widget_settings_block__controls').before(`
-                <div class="widget_settings_block__input_field" style="margin-bottom: 4px;">
-                    <span class="js-cf-enum-add cf-field-enum-add select__enums__href" style="
-                        display: inline;
-                        margin-top: -2px;
-                        margin-left: 10px;
-                        color: #909090;
-                        cursor: pointer;
-                        position: relative;
-                        border-bottom: 1px solid #92989b;
-                    ">Добавить вариант</span>
-                </div>
-            `);
-
-            // если записей нет, добавляем 5 пустых полей
-            if (selectItems.length <= 1) {
-                for (var i = 0; i < 5; i++) addInput();
-
-            }
-
-            // перебор select items для инпутов редактирования и удаления
-            $.each(selectItems, function (index, item) {
-                if (item.option == 'Выбрать результат') return;
-                addInput(item.option);
-            });
-
-            // добавляем к созданным инпутам функции удаления и создания/редактирования
-            $.each($('.cf-field-enum__remove'), function () { $(this).bind('click', inputRemove) });
-            $.each($('.select__enums__input'), function () { $(this).bind('change', inputEdit) });
-
-            // клик по ссылке, вставляем и ровняем инпут
-            $('.select__enums__href').unbind('click');
-            $('.select__enums__href').bind('click', function () {
-                // если последней инпут не заполнен, новый не добавляем
-                var lastInput = $('.select__enums__input').last();
-                if (lastInput.length) {
-                    if (!lastInput.val().trim()) {
-                        lastInput.focus();
-                        return;
-                    }
-                }
-
-                addInput();
-                // удаляем запись из массива, обновляем get_settings()
-                $('.cf-field-enum__remove').bind('click', inputRemove);
-                // добавляем запись в массив, обновляем get_settings()
-                $('.select__enums__input').bind('change', inputEdit);
-            });
-        }
-
-
-
-
         // функция отображения списков в задачах и карточке
         const addSelect = function (mutationsList) {
             // если в задачах
@@ -242,9 +25,14 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
 
                             var select = $('div.card-task .close_task_select');
                             var selectUl = $('div.card-task .close_task_select ul');
+                            var selectButton = $('.close_task_select .control--select--button');
 
                             select.css('margin-top', '1px');
-                            selectUl.css('width', 'auto');
+                            selectUl.css({
+                                'width': 'auto',
+                                'min-width': selectButton.outerWidth() - 13,
+                                'margin-left': '13px'
+                            });
 
                             // // закрытие задачи с проверкой по ID
                             self.closeTasks(self.task_id);
@@ -318,7 +106,12 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                                     });
 
                                     selectButtonHidden.trigger('click');
-                                    selectUlHidden.css({ 'width': 'auto', 'z-index': '30' });
+                                    selectUlHidden.css({
+                                        'width': 'auto',
+                                        'z-index': '30',
+                                        'min-width': selectButtonHidden.outerWidth() - 13,
+                                        'margin-left': '13px'
+                                    });
                                     selectUlHidden.removeClass('control--select--list');
                                     selectUlHidden.addClass('control--select--list-opened');
                                 });
@@ -624,31 +417,9 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
         // функция добавления select в форму закрытия задачи
         this.addSelectCloseTask = function (task_id = null) {
             // данные и шаблон select'a
-            var m_data = [
-                {option: 'Выбрать результат'},
-                {option: 'Новая заявка'},
-                {option: 'Дорого'},
-                {option: 'Клиент хотел другой товар'},
-                {option: 'Хочет бесплатно'},
-                {option: 'Неподходящий возраст'},
-                {option: 'Не отвечает после контакта (3 дня подряд)'},
-                {option: 'Нет денег'},
-                {option: 'Передумал до звонка'},
-                {option: 'Несовершеннолетний'},
-                {option: 'Нет причины'},
-                {option: 'Хотел другой продукт'},
-                {option: 'Хулиганство'},
-                {option: 'Беременные / кормящие'},
-                {option: 'Онкология'},
-                {option: 'Выключен'},
-                {option: 'Нет ответа клиента'},
-                {option: 'Неправильный номер телефона'},
-                {option: 'Ожидает предоплату'},
-                {option: 'Перезвонить'},
-                {option: 'Перезвонить клиенту'},
-                {option: 'Перезвонить и выяснить ответ'},
-                {option: 'Не дозвонился 3 дня подряд'}
-            ];
+            var m_data = [], items = self.get_settings().selectItems || [];
+            typeof items !== 'string' ? items = JSON.parse(JSON.stringify(items)) : items = JSON.parse(items);
+            $.each(items, function () { m_data.push(this) });
 
             var data = self.render(
                 { ref: '/tmpl/controls/select.twig' },
@@ -696,6 +467,175 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
             }
         }
 
+        // функция редактирования списков результатов задач
+        this.editSelect = function () {
+            // массив/объект с get_settings(), преобразуем в массив
+            var selectItems = [], items = self.get_settings().selectItems || [];
+            typeof items !== 'string' ? items = JSON.parse(JSON.stringify(items)) : items = JSON.parse(items);
+            $.each(items, function () { selectItems.push(this) });
+
+            // функция обновления get_settings()
+            const settingsUpdate = function () {
+                $(`#${ self.get_settings().widget_code }_custom`).val(JSON.stringify(selectItems));
+                $(`#${ self.get_settings().widget_code }_custom`).trigger('change');
+            }
+
+            // функция обновления selectItems и select'a
+            const updateSelect = function () {
+                // массив с новыми значениями
+                var lastSelectItems = [];
+                // перебор инпутов и запись в новый массив
+                $.each($('.select__enums__input'), function () {
+                    // удаляем пробелы до и после
+                    option = $(this).val().trim();
+                    // если инпут пустой, пропускаем
+                    if (!option.length) return;
+                    // если инпут с таким значением уже присутствует, пропускаем
+                    if (lastSelectItems.includes(option)) return;
+                    lastSelectItems.push(option);
+                });
+
+                // обнуляем текущий массив и добавляем значения инпутов
+                selectItems = [];
+                selectItems.push({ option: 'Выбрать результат' });
+                $.each(lastSelectItems, function (index, item) { selectItems.push({ option: item }) });
+
+                // обновляем items select
+                $.each($('.close_task_select ul li'), function () { $(this).remove(); });
+                $.each(selectItems, function (index, item) {
+                    $('.close_task_select ul').append(`
+                        <li data-value="${ item.option }" data-color class="control--select--list--item">
+                            <span class="control--select--list--item-inner" title="${ item.option }">${ item.option }</span>
+                        </li>
+                    `);
+                });
+
+                // обновляем get_settings
+                settingsUpdate();
+                return selectItems;
+            }
+
+            // функция удаления элемента select
+            const inputRemove = function (e) {
+                // удаляем инпут и обновляем массив и select
+                $(e.target).closest('.select__enums__item').remove();
+                selectItems = updateSelect();
+            }
+
+            // функция добавления/редактирования элемента select
+            const inputEdit = function (e) {
+                var isValue = false,
+                    option = $(e.target).val().trim(),
+                    value = $(e.target).attr('value');
+
+                // если инпут пустой, обнуляем поле и обновляем массив и select
+                if (!option.length) $(e.target).val('');
+                selectItems = updateSelect();
+            }
+
+            // функция добавления элемента input
+            const addInput = function (option = '') {
+                var input = Twig({ ref: '/tmpl/controls/input.twig' }).render({
+                    name: 'select-item',
+                    class_name: 'select__enums__input',
+                    value: option,
+                    placeholder: 'Вариант',
+                    max_length: 50
+                });
+
+                // вставляем и ровняем инпут и кнопку удаления
+                $('.select__enums__href').before(`
+                    <div class="widget_settings_block__input_field select__enums__item" style="
+                        margin-bottom: 4px;
+                        width: 100%;
+                        position: relative;
+                    ">
+                        <div class="cf-field-enum__remove" title="Удалить" style="width: auto;">
+                            <svg class="svg-icon svg-common--trash-dims"><use xlink:href="#common--trash"></use></svg>
+                        </div>
+                        ${ input }
+                    </div>
+                `);
+
+                $('.select__enums__input').css('padding-right', '25px');
+                $('.cf-field-enum__remove').css({
+                    'position': 'absolute',
+                    'top': '10px',
+                    left: $('.select__enums__input').outerWidth() - 20,
+                    'cursor': 'pointer'
+                });
+            }
+
+            // если пустой, добавляем пункт title
+            if (selectItems.length == 0) selectItems.unshift({ option: 'Выбрать результат' });
+
+            // вставляем и ровняем select и заголовок
+            var select = Twig({ ref: '/tmpl/controls/select.twig' }).render({
+                items: selectItems, class_name: 'close_task_select'
+            });
+            $('.widget_settings_block__controls').before(select);
+            $('.close_task_select').before(`
+                <div class="widget_settings_block__title_field" style="martin-top: 10px;">
+                    Список результатов задач:
+                </div>
+            `);
+            $('.close_task_select').css('margin-bottom', '4px');
+            $('.close_task_select .control--select--button').css('width', '278px');
+            $('.close_task_select ul').css({
+                'width': 'auto',
+                'min-width': '265px',
+                'max-width': $('.view-integration-modal__tabs').outerWidth(),
+                'margin-left': '13px'
+            });
+
+            // ссылка для добавления инпута
+            $('.widget_settings_block__controls').before(`
+                <div class="widget_settings_block__input_field" style="margin-bottom: 4px;">
+                    <span class="js-cf-enum-add cf-field-enum-add select__enums__href" style="
+                        display: inline;
+                        margin-top: -2px;
+                        margin-left: 10px;
+                        color: #909090;
+                        cursor: pointer;
+                        position: relative;
+                        border-bottom: 1px solid #92989b;
+                    ">Добавить вариант</span>
+                </div>
+            `);
+
+            // если записей нет, добавляем 5 пустых полей
+            if (selectItems.length <= 1) for (var i = 0; i < 5; i++) addInput();
+
+            // перебор select items для инпутов редактирования и удаления
+            $.each(selectItems, function (index, item) {
+                if (item.option == 'Выбрать результат') return;
+                addInput(item.option);
+            });
+
+            // добавляем к созданным инпутам функции удаления и создания/редактирования
+            $.each($('.cf-field-enum__remove'), function () { $(this).bind('click', inputRemove) });
+            $.each($('.select__enums__input'), function () { $(this).bind('change', inputEdit) });
+
+            // клик по ссылке, вставляем и ровняем инпут
+            $('.select__enums__href').unbind('click');
+            $('.select__enums__href').bind('click', function () {
+                // если последней инпут не заполнен, новый не добавляем
+                var lastInput = $('.select__enums__input').last();
+                if (lastInput.length) {
+                    if (!lastInput.val().trim()) {
+                        lastInput.focus();
+                        return;
+                    }
+                }
+
+                addInput();
+                // удаляем запись из массива, обновляем get_settings()
+                $('.cf-field-enum__remove').bind('click', inputRemove);
+                // добавляем запись в массив, обновляем get_settings()
+                $('.select__enums__input').bind('change', inputEdit);
+            });
+        }
+
         // функиця вызова всплывающих сообщений над кнопкой
         this.getTemplate = function (template, params, callback) {
             params = (typeof params == 'object') ? params : {};
@@ -732,9 +672,9 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                 // добавляем редактирование списка результатов задач
                 self.editSelect();
 
-                var selectItems = [], items = self.get_settings().selectItem || [];
+                var selectItems = [], items = self.get_settings().selectItems || [];
                 typeof items !== 'string' ? items = JSON.parse(JSON.stringify(items)) : items = JSON.parse(items);
-                $.each(items, function () { selectItems.push(this); });
+                $.each(items, function () { selectItems.push(this) });
 
                 $(`#${ self.get_settings().widget_code }_custom`).val(JSON.stringify(selectItems));
                 $(`#${ self.get_settings().widget_code }_custom`).trigger('change');
