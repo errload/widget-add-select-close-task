@@ -1,0 +1,20 @@
+<input
+    name="{{name}}" {% if data_id is defined and data_id %}
+    data-id="{{ data_id }}"{% endif %} {% if sort is defined and sort %}
+    data-sort="{{ sort }}"{% endif %}
+    class="{{class_name}} {% if not styled_input %}text-input{% endif %}" {% if id %}
+    id="{{id}}"{% endif %}
+    type="{% if type %}{{type}}{% else %}text{% endif %}"
+    value="{{ value is null ? "" : value }}"
+        {# attr placeholder обязательно должен существовать #}
+    placeholder="{{ placeholder }}" {% if style is defined and style %}
+    style="{% for prop, value in style %}{{prop}}:{{value}};{% endfor %}"{% endif %} {% if max_length is defined and max_length %}
+    maxlength="{{ max_length }}"{% endif %} {% if min_length is defined and min_length %}
+    minlength="{{ min_length }}"{% endif %} {% if required is defined and required %}
+    required="{{ required }}"{% endif %} {% if disabled %}
+    disabled="disabled"{% endif %} {% if autofocus %}
+    autofocus="autofocus"{% endif %} {% if readonly %}
+    readonly="readonly"{% endif %} {{additional_data|raw}}
+    autocomplete="off" {% if autosize_width %}
+    size="{{max(value|length, min_size)}}"{% endif %}
+/>
