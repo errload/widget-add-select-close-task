@@ -3,7 +3,7 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
         var self = this,
             system = self.system(),
             langs = self.langs,
-            task_id = 0; // ID задачиb
+            task_id = 0; // ID задачи
 
         // количество символов для закрытия и создания задач
         this.close_task_length = null;
@@ -51,6 +51,23 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                     if (this.type === 'attributes') {
 
                         $(document).ready(function() {
+                            var selectHidden, selectUlHidden;
+
+                            // при клике в области текущей задачи либо другой закрываем select, если открыт
+                            $.each($('div.card-task.card-task-future'), function () {
+                                $(this).unbind('click');
+                                $(this).bind('click', function () {
+                                    var selectHidden = $('div.close_task_select-hidden'),
+                                        selectUlHidden = $('div.close_task_select-hidden ul');
+
+                                    if (selectHidden.length && selectHidden.css('display') != 'none') {
+                                        selectHidden.css('display', 'none');
+                                        selectUlHidden.removeClass('control--select--list-opened');
+                                        selectUlHidden.addClass('control--select--list');
+                                    }
+                                });
+                            });
+
                             // определяем открытие задачи
                             if ($('div.card-task.card-task-future').hasClass('expanded')) {
                                 self.task_id = $('div.card-task.card-task-future.expanded .card-task__button').attr('id');
@@ -58,7 +75,7 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                                 // если скрытого select'a нет, добавляем
                                 if (!$('div.close_task_select-hidden').length) self.addSelectCloseTask();
                                 // выравниваем
-                                var selectHidden = $('div.close_task_select-hidden');
+                                selectHidden = $('div.close_task_select-hidden');
                                 selectHidden.css({
                                     'position': 'absolute',
                                     'z-index': '999',
@@ -79,7 +96,7 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                                 });
 
                                 var selectButtonHidden = $('div.close_task_select-hidden button');
-                                var selectUlHidden = $('div.close_task_select-hidden ul');
+                                selectUlHidden = $('div.close_task_select-hidden ul');
                                 var selectLiHidden = $('div.close_task_select-hidden li');
                                 var selectButton = $(`div[data-id="${ self.task_id }"] .control--select--button`);
                                 var selectButtonSpan = $(`div[data-id="${ self.task_id }"] .control--select--button-inner`);
@@ -131,12 +148,17 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                                     selectUlHidden.addClass('control--select--list');
                                 });
 
-                                // при потере курсора прячем select (эффект настоящего)
-                                selectHidden.mouseleave(function () {
+                                // закрываем select при прокрутке разных элементов
+                                const selectCSS = function () {
+                                    if (selectHidden.css('display') == 'none') return false;
                                     selectHidden.css('display', 'none');
                                     selectUlHidden.removeClass('control--select--list-opened');
                                     selectUlHidden.addClass('control--select--list');
-                                });
+                                    return false;
+                                }
+
+                                $('.card-holder__feed .notes-wrapper__scroller').scroll(selectCSS);
+                                $('div.card-holder__feed .notes-wrapper__tasks-inner').scroll(selectCSS);
 
                                 // обнуляем textarea при несоответствии проверки
                                 textarea.unbind('change');
@@ -160,7 +182,19 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
 
                                 self.task_id = null;
                                 return false;
-                            }});
+                            } else {
+                                selectHidden = $('div.close_task_select-hidden');
+                                selectUlHidden = $('div.close_task_select-hidden ul');
+
+                                if (!selectHidden.length) return false;
+                                if (selectHidden.css('display') == 'none') return false;
+
+                                selectHidden.css('display', 'none');
+                                selectUlHidden.removeClass('control--select--list-opened');
+                                selectUlHidden.addClass('control--select--list');
+                                return false;
+                            }
+                        });
                     }
                 });
             }
@@ -576,7 +610,7 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
             $('.widget_settings_block__controls').before(select);
             $('.close_task_select').before(`
                 <div class="widget_settings_block__title_field" style="martin-top: 10px;">
-                    Список результатов задач:
+                    Список результатов задач
                 </div>
             `);
             $('.close_task_select').css('margin-bottom', '4px');
