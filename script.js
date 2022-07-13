@@ -50,11 +50,20 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                 $.each(mutationsList, function () {
                     if (this.type === 'attributes') {
 
+                        // js-note js-note-fixable card-task-wrapper outside-top outside outside-task_first outside-task_last outside-top_last
+                        // js-note js-note-fixable card-task-wrapper outside-task_last outside-top_last outside-top outside
+                        // js-note js-note-fixable card-task-wrapper
+                        //
+                        // card-task-wrapper
+                        // outside
+
                         $(document).ready(function() {
-                            var selectHidden, selectUlHidden;
+                            var selectHidden, selectUlHidden,
+                                cardTaskOld = $('div.card-task.card-task-expired'), // просроченные задачи
+                                cardTaskNow = $('div.card-task.card-task-future'); // текущие задачи
 
                             // при клике в области текущей задачи либо другой закрываем select, если открыт
-                            $.each($('div.card-task.card-task-future'), function () {
+                            const cardTaskSelectClose = function () {
                                 $(this).unbind('click');
                                 $(this).bind('click', function () {
                                     var selectHidden = $('div.close_task_select-hidden'),
@@ -66,12 +75,10 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                                         selectUlHidden.addClass('control--select--list');
                                     }
                                 });
-                            });
+                            }
 
-                            // определяем открытие задачи
-                            if ($('div.card-task.card-task-future').hasClass('expanded')) {
-                                self.task_id = $('div.card-task.card-task-future.expanded .card-task__button').attr('id');
-
+                            // при клике на select задачи отображаем select hidden и работаем с ним
+                            const cardTaskSelectCreate = function () {
                                 // если скрытого select'a нет, добавляем
                                 if (!$('div.close_task_select-hidden').length) self.addSelectCloseTask();
                                 // выравниваем
@@ -182,18 +189,31 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
 
                                 self.task_id = null;
                                 return false;
-                            } else {
-                                selectHidden = $('div.close_task_select-hidden');
-                                selectUlHidden = $('div.close_task_select-hidden ul');
-
-                                if (!selectHidden.length) return false;
-                                if (selectHidden.css('display') == 'none') return false;
-
-                                selectHidden.css('display', 'none');
-                                selectUlHidden.removeClass('control--select--list-opened');
-                                selectUlHidden.addClass('control--select--list');
-                                return false;
                             }
+
+                            // при клике в области текущей задачи либо другой закрываем select, если открыт
+                            $.each(cardTaskNow, cardTaskSelectClose);
+                            $.each(cardTaskOld, cardTaskSelectClose);
+
+                            // при клике на select задачи отображаем select hidden и работаем с ним
+                            if (cardTaskNow.hasClass('expanded')) {
+                                self.task_id = $('div.card-task.card-task-future.expanded .card-task__button').attr('id');
+                                cardTaskSelectCreate();
+                            } else cardTaskSelectClose();
+
+                            if (cardTaskOld.hasClass('expanded')) {
+                                self.task_id = $('div.card-task.card-task-expired.expanded .card-task__button').attr('id');
+                                cardTaskSelectCreate();
+                            } else cardTaskSelectClose();
+
+                            // при открытии просроченные временем задачи скроллом, добавляем к ним select
+                            $.each(cardTaskOld.closest('div.card-task-wrapper'), function () {
+                                if ($(this).hasClass('outside')) return;
+
+                                self.task_id = $(this).closest('div.feed-note-wrapper-task').attr('data-id');
+                                cardTaskSelectCreate();
+                                return false;
+                            });
                         });
                     }
                 });
@@ -315,9 +335,9 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
         // функция показа сообщения об ошибке
         this.showErrorMessageTask = function (task_type, button, task_id = null) {
             var errorMessage = $(`div.${ task_type }_error_message_tasks`);
-            var left, buttonMessage;
+            var left, top, buttonMessage;
 
-            if (!task_id) buttonMessage = $('button.true_error_message');
+            if (!task_id) buttonMessage = $('div.feed-compose .true_error_message');
             else buttonMessage = $(`div[data-id="${ task_id }"] .true_error_message`);
 
             // отображаем сообщение
@@ -328,9 +348,12 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                 if (task_type === 'create') left = buttonMessage.offset().left;
                 else left = buttonMessage.offset().left - errorMessage.outerWidth() + button.outerWidth();
 
+                if (button.offset().top > 100) top = buttonMessage.offset().top - errorMessage.outerHeight() - 30;
+                else top = buttonMessage.offset().top + button.outerHeight() + 30;
+
                 errorMessage.offset({
                     left: left,
-                    top: buttonMessage.offset().top - errorMessage.outerHeight() - 30
+                    top: top
                 });
             }
 
