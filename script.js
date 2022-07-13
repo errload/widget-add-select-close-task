@@ -36,7 +36,7 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
 
                             // // закрытие задачи с проверкой по ID
                             self.closeTasks(self.task_id);
-                            setTimeout(() => self.sendAjax(self.task_id), 2000);
+                            self.sendAjax(self.task_id);
 
                             self.task_id = null;
                             return false;
@@ -178,7 +178,7 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
 
                                 // закрытие задачи с проверкой по ID
                                 self.closeTasks(self.task_id);
-                                setTimeout(() => self.sendAjax(self.task_id), 2000);
+                                self.sendAjax(self.task_id);
 
                                 self.task_id = null;
                                 return false;
@@ -254,7 +254,7 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
 
         this.sendAjax = function (task_id) {
             if (self.taskClosed) {
-                $.ajax({
+                setTimeout(() => $.ajax({
                     url: '/api/v4/tasks/' + task_id,
                     success: function (data) {
                         var result = {
@@ -266,7 +266,7 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
 
                         console.log(result);
                     }
-                });
+                }), 2000);
             }
 
             self.taskClosed = false;
