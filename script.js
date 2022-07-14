@@ -9,6 +9,7 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
         this.close_task_length = null;
         this.create_task_length = 3;
         this.taskClosed = false;
+        this.taskIDChanged = null;
 
         // функция отображения списков в задачах и карточке
         const addSelect = function (mutationsList) {
@@ -34,9 +35,8 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                                 'margin-left': '13px'
                             });
 
-                            // // закрытие задачи с проверкой по ID
-                            self.closeTasks(self.task_id);
-
+                            // // закрытие задачи
+                            self.closeTasks();
                             self.task_id = null;
                             return false;
                         }
@@ -78,7 +78,7 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                     return false;
                 }
 
-                // для просроченных открытый задач добавялем select'ы
+                // для просроченных открытых задач добавялем select'ы
                 $(document).ready(addCardSelect());
 
                 // при изменении классов (открытие, закрытие, скролл задач) обновляем select'ы
@@ -150,211 +150,44 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                         // обнуляем textarea при несоответствии проверки
                         textarea.unbind('change');
                         textarea.bind('change', function (e) {
-                            task_id = $(e.target).closest('div.feed-note-wrapper-task').attr('data-id');
+                            var task_id = $(e.target).closest('div.feed-note-wrapper-task').attr('data-id');
                             textarea = $(`div[data-id="${ task_id }"] textarea[name="result"]`);
-                            selectButton = $(`div[data-id="${ task_id }"] .control--select--button`);
+                            selectButton = $(`div.feed-note-wrapper-task[data-id="${ task_id }"] .control--select--button`);
 
                             if (textarea.val().trim().length < self.close_task_length ||
                                 (textarea.val().trim().length > self.close_task_length &&
                                     selectButton.text() === 'Выбрать результат')) {
-
                                 textarea.val('');
                             } else {
                                 if (textarea.val() !== selectButton.text()) {
                                     textarea.val(selectButton.text() + ': ' + textarea.val());
                                     self.taskClosed = true;
+                                    self.taskIDChanged = task_id;
                                 }
                             }
                         });
 
-                        // закрытие задачи с проверкой по ID
-                        self.closeTasks(self.task_id);
+                        // закрываем select при прокрутке разных элементов
+                        const selectCSS = function () {
+                            if (selectHidden.css('display') == 'none') return false;
+                            selectHidden.css('display', 'none');
+                            selectUlHidden.removeClass('control--select--list-opened');
+                            selectUlHidden.addClass('control--select--list');
+                            return false;
+                        }
 
+                        $('.card-holder__feed .notes-wrapper__scroller').scroll(selectCSS);
+                        $('div.card-holder__feed .notes-wrapper__tasks-inner').scroll(selectCSS);
+
+                        // закрытие задачи
+                        self.closeTasks();
+                        // отдельный ajax для события textarea change, иначе ajax по клику на кнопке
+                        if (self.taskIDChanged) self.sendAjax(self.taskIDChanged);
                         self.task_id = null;
                         return false;
                     }
                 });
             }
-
-            // // если в карточке
-            // if (AMOCRM.isCard() === true) {
-            //     $.each(mutationsList, function () {
-            //         if (this.type === 'attributes') {
-            //
-            //             // js-note js-note-fixable card-task-wrapper outside-top outside outside-task_first outside-task_last outside-top_last
-            //             // js-note js-note-fixable card-task-wrapper outside-task_last outside-top_last outside-top outside
-            //             // js-note js-note-fixable card-task-wrapper
-            //             //
-            //             // card-task-wrapper
-            //             // outside
-            //
-            //             $(document).ready(function() {
-            //                 var selectHidden, selectUlHidden,
-            //                     cardTaskOld = $('div.card-task'), // просроченные задачи
-            //                     cardTaskNow = $('div.card-task'); // текущие задачи
-            //
-            //                 // при клике в области текущей задачи либо другой закрываем select, если открыт
-            //                 const cardTaskSelectClose = function () {
-            //                     $(this).unbind('click');
-            //                     $(this).bind('click', function () {
-            //                         var selectHidden = $('div.close_task_select-hidden'),
-            //                             selectUlHidden = $('div.close_task_select-hidden ul');
-            //
-            //                         if (selectHidden.length && selectHidden.css('display') != 'none') {
-            //                             selectHidden.css('display', 'none');
-            //                             selectUlHidden.removeClass('control--select--list-opened');
-            //                             selectUlHidden.addClass('control--select--list');
-            //                         }
-            //                     });
-            //                 }
-            //
-            //                 // при клике на select задачи отображаем select hidden и работаем с ним
-            //                 const cardTaskSelectCreate = function (task_id = null) {
-            //                     if ($('div.card-task.card-task-future.expanded'))
-            //                         self.task_id = $('div.card-task.card-task-future.expanded .card-task__button').attr('id');
-            //                     else if ($('div.card-task.card-task-expired.expanded').length)
-            //                         self.task_id = $('div.card-task.card-task-expired.expanded .card-task__button').attr('id');
-            //                     if (task_id) self.task_id = task_id;
-            //
-            //                     console.log(self.task_id);
-            //
-            //                     // если скрытого select'a нет, добавляем
-            //                     if (!$('div.close_task_select-hidden').length) self.addSelectCloseTask();
-            //                     // выравниваем
-            //                     selectHidden = $('div.close_task_select-hidden');
-            //                     selectHidden.css({
-            //                         'position': 'absolute',
-            //                         'z-index': '999',
-            //                         'display': 'none',
-            //                         'width': 'auto',
-            //                         'max-width': '170px'
-            //                     });
-            //
-            //                     // если select'a нет, добавляем
-            //                     if (!$(`div[data-id="${ self.task_id }"] .close_task_select`).length) self.addSelectCloseTask(self.task_id);
-            //                     // выравниваем
-            //                     var select = $(`div[data-id="${ self.task_id }"] .close_task_select`);
-            //                     select.css({
-            //                         'margin-top': '1px',
-            //                         'margin-right': '10px',
-            //                         'width': 'auto',
-            //                         'max-width': '170px'
-            //                     });
-            //
-            //                     var selectButtonHidden = $('div.close_task_select-hidden button');
-            //                     selectUlHidden = $('div.close_task_select-hidden ul');
-            //                     var selectLiHidden = $('div.close_task_select-hidden li');
-            //                     var selectButton = $(`div[data-id="${ self.task_id }"] .control--select--button`);
-            //                     var selectButtonSpan = $(`div[data-id="${ self.task_id }"] .control--select--button-inner`);
-            //                     var textarea = $(`div[data-id="${ self.task_id }"] textarea[name="result"]`);
-            //
-            //                     // отображаем пункты скрытого select'a при клике на select задачи
-            //                     selectButton.unbind('click');
-            //                     selectButton.bind('click', function (e) {
-            //                         e.stopPropagation();
-            //
-            //                         // если select был изменен ранее, но задача не закрыта, отображаем прежнее значение
-            //                         $.each(selectLiHidden, function () {
-            //                             $(this).removeClass('control--select--list--item-selected');
-            //                             if (selectButtonSpan.text() === $(this).text()) {
-            //                                 $(this).addClass('control--select--list--item-selected');
-            //                             }
-            //                         });
-            //
-            //                         // меняем свойства скрытого select'a и кликаем по нему
-            //                         selectHidden.css({
-            //                             'display': 'block',
-            //                             'left': select.offset().left - $('div.left-menu').outerWidth(),
-            //                             'top': select.offset().top
-            //                         });
-            //
-            //                         selectButtonHidden.trigger('click');
-            //                         selectUlHidden.css({
-            //                             'width': 'auto',
-            //                             'z-index': '30',
-            //                             'min-width': selectButtonHidden.outerWidth() - 13,
-            //                             'margin-left': '13px'
-            //                         });
-            //                         selectUlHidden.removeClass('control--select--list');
-            //                         selectUlHidden.addClass('control--select--list-opened');
-            //                     });
-            //
-            //                     // отображаем скрытый select при открытии пунктов
-            //                     if (selectUlHidden.hasClass('control--select--list-opened')) {
-            //                         selectHidden.css('display', 'block');
-            //                     } else selectHidden.css('display', 'none');
-            //
-            //                     // при выборе пункта скрытого select'a присваиваем результат в select задачи и скрываем
-            //                     selectLiHidden.unbind('click');
-            //                     selectLiHidden.bind('click', function (e) {
-            //                         selectButtonSpan.text($(e.target).text());
-            //
-            //                         selectUlHidden.css('width', 'auto');
-            //                         selectUlHidden.removeClass('control--select--list-opened');
-            //                         selectUlHidden.addClass('control--select--list');
-            //                     });
-            //
-            //                     // закрываем select при прокрутке разных элементов
-            //                     const selectCSS = function () {
-            //                         if (selectHidden.css('display') == 'none') return false;
-            //                         selectHidden.css('display', 'none');
-            //                         selectUlHidden.removeClass('control--select--list-opened');
-            //                         selectUlHidden.addClass('control--select--list');
-            //                         return false;
-            //                     }
-            //
-            //                     $('.card-holder__feed .notes-wrapper__scroller').scroll(selectCSS);
-            //                     $('div.card-holder__feed .notes-wrapper__tasks-inner').scroll(selectCSS);
-            //
-            //                     // обнуляем textarea при несоответствии проверки
-            //                     textarea.unbind('change');
-            //                     textarea.bind('change', function () {
-            //                         if (textarea.val().trim().length < self.close_task_length ||
-            //                             (textarea.val().trim().length > self.close_task_length &&
-            //                                 selectButton.text() === 'Выбрать результат')) {
-            //
-            //                             textarea.val('');
-            //                         } else {
-            //                             if (textarea.val() !== selectButton.text()) {
-            //                                 textarea.val(selectButton.text() + ': ' + textarea.val());
-            //                                 self.taskClosed = true;
-            //                             }
-            //                         }
-            //                     });
-            //
-            //                     // закрытие задачи с проверкой по ID
-            //                     self.closeTasks(self.task_id);
-            //                     self.sendAjax(self.task_id);
-            //
-            //                     self.task_id = null;
-            //                     return false;
-            //                 }
-            //
-            //                 // при клике в области текущей задачи либо другой закрываем select, если открыт
-            //                 $.each(cardTaskNow, cardTaskSelectClose);
-            //                 $.each(cardTaskOld, cardTaskSelectClose);
-            //
-            //                 // при клике на select задачи отображаем select hidden и работаем с ним
-            //                 if (cardTaskNow.hasClass('expanded')) {
-            //                     cardTaskSelectCreate();
-            //                 } else cardTaskSelectClose();
-            //
-            //                 if (cardTaskOld.hasClass('expanded')) {
-            //                     cardTaskSelectCreate();
-            //                 } else cardTaskSelectClose();
-            //
-            //                 // при открытии просроченные временем задачи скроллом, добавляем к ним select
-            //                 $.each(cardTaskOld.closest('div.card-task-wrapper'), function () {
-            //                     if ($(this).hasClass('outside')) return;
-            //
-            //                     task_id = $(this).closest('div.feed-note-wrapper-task').attr('data-id');
-            //                     cardTaskSelectCreate(task_id);
-            //                     return false;
-            //                 });
-            //             });
-            //         }
-            //     });
-            // }
         }
 
         // функция создания задачи
@@ -425,12 +258,11 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                     }
                 }), 2000);
             }
-
             self.taskClosed = false;
         }
 
         // функция закрытия задачи с проверкой по ID
-        this.closeTasks = function (task_id) {
+        this.closeTasks = function () {
             $('div.card-task .card-task__button').unbind('click');
             $('div.card-task .card-task__button').bind('click', function (e) {
                 var task_id;
@@ -537,9 +369,12 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
 
         // функция смены цвета полей при ошибке закрытия задачи
         this.redFieldsTaskClose = function (task_id) {
-            var button = $(`div[data-id="${ task_id }"] .card-task__button`);
+            var selectButton, button = $(`div[data-id="${ task_id }"] .card-task__button`);
             var textarea = $(`div[data-id="${ task_id }"] textarea[name="result"]`);
-            var selectButton = $(`div[data-id="${ task_id }"] .control--select--button`);
+
+            // в задачах и карточке раположение select'a разное
+            if (AMOCRM.isCard() === true) selectButton = $(`div.feed-note-wrapper-task[data-id="${ task_id }"] .control--select--button`);
+            else if (AMOCRM.getBaseEntity() === 'todo') selectButton = $(`div.todo-form[data-id="${ task_id }"] .control--select--button`);
 
             // красим поля, если условие проверки не выполнено
             button.css('border-color', '#f37575').css('background', '#f57d7d');
