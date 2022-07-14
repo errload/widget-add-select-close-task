@@ -8,7 +8,7 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
         // количество символов для закрытия и создания задач
         this.close_task_length = null;
         this.create_task_length = 3;
-        this.taskClosed = false;
+        this.taskClosed = false; // для ajax запроса
         this.taskIDChanged = null;
 
         // функция отображения списков в задачах и карточке
@@ -179,6 +179,11 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                         $('.card-holder__feed .notes-wrapper__scroller').scroll(selectCSS);
                         $('div.card-holder__feed .notes-wrapper__tasks-inner').scroll(selectCSS);
 
+                        // закрываем select при клике вне select'a
+                        $(document).click(function (e) {
+                            if (!$(e.target).closest('.close_task_select-hidden').length) selectCSS();
+                        });
+
                         // закрытие задачи
                         self.closeTasks();
                         // отдельный ajax для события textarea change, иначе ajax по клику на кнопке
@@ -267,6 +272,7 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
             $('div.card-task .card-task__button').bind('click', function (e) {
                 var task_id;
 
+                // в задачах и карточке расположение ID задачи разное
                 if (AMOCRM.getBaseEntity() === 'todo') task_id = $(e.target).closest('div.todo-form').attr('data-id');
                 else if (AMOCRM.isCard() === true) task_id = $(e.target).closest('div.feed-note-wrapper-task').attr('data-id');
 
@@ -372,7 +378,7 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
             var selectButton, button = $(`div[data-id="${ task_id }"] .card-task__button`);
             var textarea = $(`div[data-id="${ task_id }"] textarea[name="result"]`);
 
-            // в задачах и карточке раположение select'a разное
+            // в задачах и карточке расположение select'a разное
             if (AMOCRM.isCard() === true) selectButton = $(`div.feed-note-wrapper-task[data-id="${ task_id }"] .control--select--button`);
             else if (AMOCRM.getBaseEntity() === 'todo') selectButton = $(`div.todo-form[data-id="${ task_id }"] .control--select--button`);
 
