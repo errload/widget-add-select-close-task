@@ -8,8 +8,7 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
         // количество символов для закрытия и создания задач
         this.close_task_length = null;
         this.create_task_length = 3;
-        this.taskClosed = false; // для ajax запроса
-        this.taskIDChanged = null;
+        this.taskClosed = null; // для ajax запроса
 
         // функция отображения списков в задачах и карточке
         const addSelect = function (mutationsList) {
@@ -91,7 +90,7 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                         var selectButtonHidden = $('div.close_task_select-hidden button');
                         var selectUlHidden = $('div.close_task_select-hidden ul');
                         var selectLiHidden = $('div.close_task_select-hidden li');
-                        var textarea = $('div.card-task textarea[name="result"]');
+
 
                         // отображаем пункты скрытого select'a при клике на select задачи
                         selectButton.unbind('click');
@@ -147,26 +146,6 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                             selectUlHidden.addClass('control--select--list');
                         });
 
-                        // обнуляем textarea при несоответствии проверки
-                        textarea.unbind('change');
-                        textarea.bind('change', function (e) {
-                            var task_id = $(e.target).closest('div.feed-note-wrapper-task').attr('data-id');
-                            textarea = $(`div[data-id="${ task_id }"] textarea[name="result"]`);
-                            selectButton = $(`div.feed-note-wrapper-task[data-id="${ task_id }"] .control--select--button`);
-
-                            if (textarea.val().trim().length < self.close_task_length ||
-                                (textarea.val().trim().length > self.close_task_length &&
-                                    selectButton.text() === 'Выбрать результат')) {
-                                textarea.val('');
-                            } else {
-                                if (textarea.val() !== selectButton.text()) {
-                                    textarea.val(selectButton.text() + ': ' + textarea.val());
-                                    self.taskClosed = true;
-                                    self.taskIDChanged = task_id;
-                                }
-                            }
-                        });
-
                         // закрываем select при прокрутке разных элементов
                         const selectCSS = function () {
                             if (selectHidden.css('display') == 'none') return false;
@@ -186,8 +165,6 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
 
                         // закрытие задачи
                         self.closeTasks();
-                        // отдельный ajax для события textarea change, иначе ajax по клику на кнопке
-                        if (self.taskIDChanged) self.sendAjax(self.taskIDChanged);
                         self.task_id = null;
                         return false;
                     }
@@ -247,37 +224,42 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
         this.observerCreateTasks = new MutationObserver(createTasks);
         this.observerAddSelect = new MutationObserver(addSelect);
 
+        // ajax по завершению задачи
         this.sendAjax = function (task_id) {
-            if (self.taskClosed) {
-                setTimeout(() => $.ajax({
-                    url: '/api/v4/tasks/' + task_id,
-                    success: function (data) {
-                        var result = {
-                            'ID сущности': data.entity_id,
-                            'ID задачи': data.id,
-                            'Статус задачи': data.is_completed,
-                            'Комментарий к задаче': data.result['text']
-                        }
-
-                        console.log(result);
+            setTimeout(() => $.ajax({
+                url: '/api/v4/tasks/' + task_id,
+                success: function (data) {
+                    var result = {
+                        'ID сущности': data.entity_id,
+                        'ID задачи': data.id,
+                        'Статус задачи': data.is_completed,
+                        'Комментарий к задаче': data.result['text']
                     }
-                }), 2000);
-            }
-            self.taskClosed = false;
+
+                    console.log(result);
+                }
+            }), 2000);
+
+            self.taskClosed = null;
         }
 
         // функция закрытия задачи с проверкой по ID
         this.closeTasks = function () {
             $('div.card-task .card-task__button').unbind('click');
             $('div.card-task .card-task__button').bind('click', function (e) {
-                var task_id;
+                var task_id, selectButton;
 
-                // в задачах и карточке расположение ID задачи разное
-                if (AMOCRM.getBaseEntity() === 'todo') task_id = $(e.target).closest('div.todo-form').attr('data-id');
-                else if (AMOCRM.isCard() === true) task_id = $(e.target).closest('div.feed-note-wrapper-task').attr('data-id');
+                // в задачах и карточке расположение ID задачи и select разное
+                if (AMOCRM.getBaseEntity() === 'todo') {
+                    task_id = $(e.target).closest('div.todo-form').attr('data-id');
+                    var selectButton = $(`div.todo-form[data-id="${ task_id }"] .control--select--button`);
+                }
+                else if (AMOCRM.isCard() === true) {
+                    task_id = $(e.target).closest('div.feed-note-wrapper-task').attr('data-id');
+                    var selectButton = $(`div.feed-note-wrapper-task[data-id="${ task_id }"] .control--select--button`);
+                }
 
                 var button = $(`div[data-id="${ task_id }"] .card-task__button`);
-                var selectButton = $(`div[data-id="${ task_id }"] .control--select--button`);
                 var textarea = $(`div[data-id="${ task_id }"] textarea[name="result"]`);
 
                 // удаляем лишние пробелы в строке
@@ -292,22 +274,46 @@ define(['jquery', 'underscore', 'twigjs'], function ($, _, Twig) {
                     self.taskClosed = false;
                     return false;
                 } else {
-                    // результат выполнения задачи
-                    if (textarea.val() === '') {
-                        textarea.val(selectButton.text());
+                    if (AMOCRM.getBaseEntity() === 'todo') {
+                        if (textarea.val() === '') textarea.val(selectButton.text());
+                        else textarea.val(selectButton.text() + ': ' + textarea.val());
                         textarea.trigger('change');
-                    }
-                    else if (AMOCRM.getBaseEntity() === 'todo') {
-                        textarea.val(selectButton.text() + ': ' + textarea.val());
-                        textarea.trigger('change');
-                    }
+                    } else if (AMOCRM.isCard() === true) textarea.trigger('change');
                 }
 
                 // удаляем класс ошибки с кнопки в случае успеха
                 button.removeClass('true_error_message');
-                self.taskClosed = true;
-                self.sendAjax(task_id);
+                self.taskClosed = task_id;
             });
+
+            if (AMOCRM.isCard() === true) {
+                // обнуляем textarea при несоответствии проверки
+                var textarea = $('div.card-task textarea[name="result"]');
+                textarea.unbind('change');
+                textarea.bind('change', function (e) {
+                    var task_id = $(e.target).closest('div.feed-note-wrapper-task').attr('data-id');
+                    textarea = $(`div[data-id="${task_id}"] textarea[name="result"]`);
+                    selectButton = $(`div.feed-note-wrapper-task[data-id="${task_id}"] .control--select--button`);
+
+                    // удаляем лишние пробелы в строке
+                    textarea.val(textarea.val().trim());
+
+                    if (textarea.val().length < self.close_task_length || selectButton.text() === 'Выбрать результат') {
+                        textarea.val('');
+                    } else {
+                        if (textarea.val() == '') textarea.val(selectButton.text());
+                        else {
+                            if (textarea.val().indexOf(selectButton.text()) == -1) {
+                                textarea.val(selectButton.text() + ': ' + textarea.val());
+                            }
+                        }
+                        self.taskClosed = task_id;
+                    }
+                });
+            }
+
+            // отправляем ajax по завершению задачи
+            if (self.taskClosed) self.sendAjax(self.taskClosed);
         }
 
         // функция показа сообщения об ошибке
